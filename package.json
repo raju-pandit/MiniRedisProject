@@ -3,9 +3,21 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "cli": "node bin/miniredis-cli.js"
   },
-  "dependencies": {
-    "redis-parser": "^3.0.0"
-  }
+  "dependencies": {},
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/raju-pandit/MiniRedisProject.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/raju-pandit/MiniRedisProject/issues"
+  },
+  "homepage": "https://github.com/raju-pandit/MiniRedisProject#readme",
+  "description": ""
 }
