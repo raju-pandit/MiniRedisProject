@@ -1,101 +1,88 @@
 # MiniRedis
 
-MiniRedis is a small Redis-inspired in-memory database made with Node.js. It is built from scratch: it has its own TCP server, RESP protocol parser, in-memory storage, expiry manager, and JSON snapshot persistence. It does not require Redis or an external database.
+MiniRedis is a Redis-inspired in-memory key-value database written in Node.js. It is implemented with Node.js standard libraries only: a custom TCP server, a streaming RESP2 parser, an in-memory storage engine, expiry handling, a JSON snapshot system, and a command-line client.
 
-This project is suitable for learning how a basic key-value database server works, or for local experiments. It is not intended as a replacement for Redis in production systems.
+It is a learning project and local-development tool, not a production replacement for Redis.
+
+> **Project integrity note:** This repository has used AI-assisted development. Do not submit it to a competition, assessment, or hackathon whose rules prohibit AI assistance.
+
+## Contents
+
+- [Features](#features)
+- [Requirements](#requirements)
+- [Download and run](#download-and-run)
+- [Command reference](#command-reference)
+- [Architecture](#architecture)
+- [Storage and data structures](#storage-and-data-structures)
+- [Concurrency model](#concurrency-model)
+- [Persistence](#persistence)
+- [Verification](#verification)
+- [Limitations](#limitations)
+
+## Features
+
+| Requirement | Status | Implementation |
+| --- | --- | --- |
+| Custom TCP server | Done | Node.js `net` server listens on a configurable host and port. |
+| Multiple clients | Done | Each TCP socket is handled independently by the event loop. |
+| `SET`, `GET`, `DEL`, `EXISTS`, `KEYS`, `FLUSHALL` | Done | Core key-value commands. |
+| `EXPIRE`, `TTL`, `PERSIST` | Done | Absolute expiry timestamps with active and lazy cleanup. |
+| Strings | Done | UTF-8 string values. |
+| Lists | Done | Push, pop, length, and range commands. |
+| Hashes | Done | Field/value record commands. |
+| Snapshot and reload | Done | Atomic JSON snapshot writes and startup reload. |
+| CLI client | Done | Send commands from a terminal and view formatted responses. |
+| RESP2 request support | Done | Handles fragmented and pipelined array requests. |
+| Pub/Sub, transactions, AOF, replication, authentication | Not implemented | Outside the scope of this simplified project. |
 
 ## Requirements
 
 - Node.js 18 or newer
-- npm (included with Node.js)
+- npm, which is installed with Node.js
+- Windows PowerShell, Command Prompt, macOS Terminal, or a Linux shell
 
-Verify the installation:
+Confirm Node.js is installed:
 
-```bash
+```powershell
 node --version
 npm --version
 ```
 
-## Download and Run from GitHub (Windows Step-by-Step)
+## Download and Run
 
 Repository: [raju-pandit/MiniRedisProject](https://github.com/raju-pandit/MiniRedisProject)
 
-### Step 1: Install Node.js
-
-Download and install the **LTS** version of Node.js from [nodejs.org](https://nodejs.org/). During installation, keep the default options enabled.
-
-Open PowerShell and confirm that Node.js and npm are available:
-
-```powershell
-node --version
-npm --version
-```
-
-If both commands show version numbers, continue to Step 2. If PowerShell says `node is not recognized`, close and reopen the terminal after installing Node.js.
-
-### Step 2: Download the Project
-
-Choose one of these methods.
-
-#### Option A: Download ZIP (easiest)
+### Option 1: Download as ZIP
 
 1. Open the [GitHub repository](https://github.com/raju-pandit/MiniRedisProject).
-2. Click the green **Code** button.
-3. Select **Download ZIP**.
-4. Extract the ZIP file anywhere, for example `D:\Projects\MiniRedisProject`.
-5. Open the extracted folder in File Explorer.
-6. Right-click inside the folder and choose **Open in Terminal** (or open PowerShell and use `cd`).
-
-Example when using PowerShell:
+2. Click **Code** and choose **Download ZIP**.
+3. Extract the archive, for example to `D:\Projects\MiniRedisProject`.
+4. Open PowerShell in the extracted folder.
 
 ```powershell
 cd D:\Projects\MiniRedisProject
+npm install
+npm start
 ```
 
-#### Option B: Clone with Git
-
-If Git is installed, run:
+### Option 2: Clone with Git
 
 ```powershell
 git clone https://github.com/raju-pandit/MiniRedisProject.git
 cd MiniRedisProject
-```
-
-### Step 3: Install the Project
-
-Inside the project folder, run:
-
-```powershell
 npm install
-```
-
-This project has no runtime dependencies, but this command verifies the Node.js project setup.
-
-### Step 4: Start the Database Server
-
-Run:
-
-```powershell
 npm start
 ```
 
-You should see:
+When the server starts, it prints:
 
 ```text
 MiniRedis listening on 127.0.0.1:8000
 ```
 
-Keep this terminal open. The server must remain running while you send commands.
+Leave this first terminal open. Open a second terminal in the same project folder to use the CLI client.
 
-### Step 5: Open a Second Terminal and Send Commands
-
-Open another PowerShell window. Go to the same project folder:
-
-```powershell
-cd D:\Projects\MiniRedisProject
-```
-
-Now try these commands one by one:
+### Quick Client Demo
 
 ```powershell
 npm run cli -- PING
@@ -107,7 +94,7 @@ npm run cli -- HSET user:1 name Raju city Delhi
 npm run cli -- HGETALL user:1
 ```
 
-Expected basic result:
+Expected first responses:
 
 ```text
 PONG
@@ -115,106 +102,63 @@ OK
 Raju
 ```
 
-### Step 6: Stop the Server
+Stop the server with `Ctrl + C`. A final snapshot is saved before a normal shutdown.
 
-Go back to the server terminal and press:
+### Custom Host, Port, and Snapshot Path
 
-```text
-Ctrl + C
-```
+The default server address is `127.0.0.1:8000`, and the default snapshot path is `data/snapshot.json`.
 
-Data is automatically saved before the server closes. The next `npm start` reloads it from `data/snapshot.json`.
-
-## Quick Start
-
-If Node.js is already installed and the repository has already been downloaded:
+In PowerShell, set a different port:
 
 ```powershell
-cd MiniRedisProject
-npm install
+$env:PORT = 6380
 npm start
 ```
 
-Then, in a second terminal:
+Then send commands to that port:
 
 ```powershell
-cd MiniRedisProject
-npm run cli -- SET greeting hello
-npm run cli -- GET greeting
+npm run cli -- --port 6380 SET message hello
+npm run cli -- --port 6380 GET message
 ```
 
-## Start the Server
+Use a custom snapshot location:
 
-Run the server:
-
-```bash
+```powershell
+$env:SNAPSHOT_PATH = "D:\MiniRedisData\snapshot.json"
 npm start
 ```
 
-Expected output:
+## Command Reference
 
-```text
-MiniRedis listening on 127.0.0.1:8000
+The general CLI format is:
+
+```powershell
+npm run cli -- COMMAND [argument ...]
 ```
 
-The default server address is:
-
-```text
-Host: 127.0.0.1
-Port: 8000
-```
-
-Keep this terminal running. Open a second terminal in the same project folder to send commands using the CLI.
-
-## Use the CLI Client
-
-Command format:
-
-```bash
-npm run cli -- COMMAND argument1 argument2
-```
-
-Examples:
-
-```bash
-npm run cli -- PING
-npm run cli -- SET name Raju
-npm run cli -- GET name
-npm run cli -- DEL name
-```
-
-The CLI connects to `127.0.0.1:8000` by default. To use a different server or port:
-
-```bash
-npm run cli -- --host 127.0.0.1 --port 6380 SET name Raju
-```
-
-## All Commands
-
-### Basic and String Commands
+### Core Commands
 
 | Command | Description | Example |
 | --- | --- | --- |
-| `PING` | Checks whether the server is alive. | `PING` |
-| `SET key value` | Stores a string value. Replaces any existing key. | `SET name Raju` |
-| `GET key` | Reads a string value. Returns `(nil)` when missing. | `GET name` |
+| `PING` | Checks whether the server is available. | `PING` |
+| `SET key value` | Stores a string. Existing data at the key is replaced. | `SET name Raju` |
+| `GET key` | Reads a string; returns `(nil)` if absent. | `GET name` |
 | `DEL key [key ...]` | Deletes one or more keys. | `DEL name city` |
-| `EXISTS key [key ...]` | Counts keys that exist. | `EXISTS name city` |
-| `KEYS pattern` | Lists matching keys. Supports `*` and `?`. | `KEYS user:*` |
-| `FLUSHALL` | Deletes every key in the database. | `FLUSHALL` |
-| `TYPE key` | Shows `string`, `list`, `hash`, or `none`. | `TYPE name` |
+| `EXISTS key [key ...]` | Counts the keys that exist. | `EXISTS name city` |
+| `KEYS pattern` | Lists matching keys. `*` matches any text and `?` matches one character. | `KEYS user:*` |
+| `FLUSHALL` | Deletes every key. Use carefully. | `FLUSHALL` |
+| `TYPE key` | Returns `string`, `list`, `hash`, or `none`. | `TYPE name` |
 
 ### Expiry Commands
 
 | Command | Description | Example |
 | --- | --- | --- |
-| `EXPIRE key seconds` | Deletes a key automatically after the given number of seconds. | `EXPIRE session:1 60` |
-| `TTL key` | Returns seconds remaining. `-1` means no expiry and `-2` means missing key. | `TTL session:1` |
-| `PERSIST key` | Removes expiry from a key. | `PERSIST session:1` |
+| `EXPIRE key seconds` | Sets a key's expiry time. | `EXPIRE session:1 60` |
+| `TTL key` | Returns remaining seconds. `-1` means no expiry; `-2` means missing. | `TTL session:1` |
+| `PERSIST key` | Removes an existing expiry. | `PERSIST session:1` |
 
-Example:
-
-```bash
+```powershell
 npm run cli -- SET session:1 active
 npm run cli -- EXPIRE session:1 60
 npm run cli -- TTL session:1
@@ -223,20 +167,16 @@ npm run cli -- PERSIST session:1
 
 ### List Commands
 
-Lists store ordered string values.
-
 | Command | Description | Example |
 | --- | --- | --- |
-| `LPUSH key value [value ...]` | Adds values at the beginning of a list. | `LPUSH tasks first second` |
-| `RPUSH key value [value ...]` | Adds values at the end of a list. | `RPUSH tasks first second` |
+| `LPUSH key value [value ...]` | Adds values to the beginning. | `LPUSH tasks first second` |
+| `RPUSH key value [value ...]` | Adds values to the end. | `RPUSH tasks first second` |
 | `LPOP key` | Removes and returns the first value. | `LPOP tasks` |
 | `RPOP key` | Removes and returns the last value. | `RPOP tasks` |
-| `LLEN key` | Returns the list size. | `LLEN tasks` |
-| `LRANGE key start stop` | Returns a range of values. Use `0 -1` for the full list. | `LRANGE tasks 0 -1` |
+| `LLEN key` | Returns the list length. | `LLEN tasks` |
+| `LRANGE key start stop` | Returns values in a range. Use `0 -1` for all values. | `LRANGE tasks 0 -1` |
 
-Example:
-
-```bash
+```powershell
 npm run cli -- RPUSH fruits apple mango banana
 npm run cli -- LRANGE fruits 0 -1
 npm run cli -- LPOP fruits
@@ -244,20 +184,16 @@ npm run cli -- LPOP fruits
 
 ### Hash Commands
 
-Hashes store field/value pairs, useful for user or product records.
-
 | Command | Description | Example |
 | --- | --- | --- |
-| `HSET key field value [field value ...]` | Sets one or more fields. | `HSET user:1 name Raju city Delhi` |
-| `HGET key field` | Reads a field value. | `HGET user:1 name` |
-| `HDEL key field [field ...]` | Removes one or more fields. | `HDEL user:1 city` |
-| `HEXISTS key field` | Checks whether a field exists. | `HEXISTS user:1 name` |
+| `HSET key field value [field value ...]` | Creates or updates fields. | `HSET user:1 name Raju city Delhi` |
+| `HGET key field` | Reads a field. | `HGET user:1 name` |
+| `HDEL key field [field ...]` | Deletes fields. | `HDEL user:1 city` |
+| `HEXISTS key field` | Checks if a field exists. | `HEXISTS user:1 name` |
 | `HLEN key` | Returns the number of fields. | `HLEN user:1` |
-| `HGETALL key` | Returns all fields and values. | `HGETALL user:1` |
+| `HGETALL key` | Returns every field and value. | `HGETALL user:1` |
 
-Example:
-
-```bash
+```powershell
 npm run cli -- HSET user:1 name Raju role developer
 npm run cli -- HGET user:1 name
 npm run cli -- HGETALL user:1
@@ -267,69 +203,115 @@ npm run cli -- HGETALL user:1
 
 | Command | Description |
 | --- | --- |
-| `SAVE` | Immediately writes the current data to the snapshot file. |
+| `SAVE` | Immediately saves the current database to the snapshot file. |
 
-The server also saves after every write operation (`SET`, `DEL`, list/hash updates, expiry updates, and `FLUSHALL`) and when it is stopped normally with `Ctrl+C`.
-
-## Data Persistence and Restart
-
-By default, data is stored in:
+## Architecture
 
 ```text
-data/snapshot.json
+CLI / TCP client
+      |
+      v
+TCP server (src/server.js)
+      |
+      v
+Streaming RESP2 parser (src/resp.js)
+      |
+      v
+Command executor (src/commands.js)
+      |
+      v
+Typed in-memory Store (src/store.js)
+      |
+      v
+Snapshot persistence (src/persistence.js) -> data/snapshot.json
 ```
 
-When the server restarts, MiniRedis automatically reads this file and restores strings, lists, hashes, and still-valid expiry times.
+### Request Flow
 
-To use a custom snapshot location in PowerShell:
+1. A client opens a TCP connection and sends a RESP2 array command.
+2. The server retains incomplete data, so a command can arrive across multiple network chunks.
+3. The parser returns complete commands in order, including pipelined commands.
+4. The command executor validates arguments and reads or changes the store.
+5. Mutating commands save an updated snapshot.
+6. The server encodes the response as RESP2 and sends it back to the client.
+
+## Storage and Data Structures
+
+| Data | Structure | Why it is used |
+| --- | --- | --- |
+| Database keys | JavaScript `Map` | Fast key lookup and predictable key iteration. |
+| String value | JavaScript string | Direct storage for `SET` and `GET`. |
+| List value | JavaScript array | Supports ordered push, pop, length, and slicing operations. |
+| Hash value | JavaScript `Map` | Efficient field lookup and update for record-like data. |
+| Expiry | Absolute timestamp in milliseconds | Enables correct expiry across server restarts. |
+
+Every stored entry has this conceptual shape:
+
+```text
+key -> { type, value, expiresAt }
+```
+
+`expiresAt` is either an epoch timestamp or `null`. An expired key is deleted when accessed and by a one-second background cleanup sweep.
+
+## Concurrency Model
+
+MiniRedis uses Node.js's event-driven TCP model. Multiple clients can remain connected and send commands concurrently. Each socket has its own parser buffer, so fragmented data from one client cannot affect another client.
+
+JavaScript command execution is synchronous within the event loop. A single command finishes before the next command begins, so an individual mutation is atomic with respect to other commands. This simplified model does not provide Redis transactions or multi-command atomic blocks.
+
+## Persistence
+
+The server writes a JSON snapshot after every mutating command, when `SAVE` is called, and during a normal shutdown.
+
+Save process:
+
+1. Remove expired entries.
+2. Convert the store into a serializable snapshot object.
+3. Write it to `snapshot.json.tmp`.
+4. Rename the temporary file to `snapshot.json`.
+
+Writing to a temporary file before renaming prevents a partially written snapshot from replacing the previous file. At startup, the server loads the snapshot and ignores entries whose expiry time has already passed.
+
+## Verification
+
+Manual verification commands:
 
 ```powershell
-$env:SNAPSHOT_PATH = "D:\my-data\miniredis-snapshot.json"
-npm start
+npm run cli -- SET greeting hello
+npm run cli -- GET greeting
+npm run cli -- EXPIRE greeting 10
+npm run cli -- TTL greeting
+npm run cli -- RPUSH queue first second
+npm run cli -- LRANGE queue 0 -1
+npm run cli -- HSET profile name Raju city Delhi
+npm run cli -- HGETALL profile
+npm run cli -- SAVE
 ```
 
-## Change the Port
-
-To start on port `6380` in PowerShell:
+The code can also be checked for JavaScript syntax:
 
 ```powershell
-$env:PORT = 6380
-npm start
+node --check index.js
+Get-ChildItem src,bin -Recurse -Filter *.js | ForEach-Object { node --check $_.FullName }
 ```
 
-Then use the same port in the client:
+## Limitations
 
-```bash
-npm run cli -- --port 6380 SET message hello
-npm run cli -- --port 6380 GET message
-```
+- Data is stored in memory; available RAM limits database size.
+- Snapshots are synchronous and can temporarily block the event loop for very large datasets.
+- `KEYS` scans every key and is not suitable for very large databases.
+- There is no password authentication, TLS encryption, ACL support, or network access control beyond the configured host binding.
+- There is no Pub/Sub, transaction support, append-only-file persistence, replication, eviction policy, sets, or sorted sets.
+- Values are handled as UTF-8 text by this implementation.
 
 ## Project Structure
 
 ```text
 index.js                 Server entry point
-bin/miniredis-cli.js     Command-line client
-src/resp.js              RESP2 request parser and reply encoder
-src/commands.js          Command validation and implementation
-src/store.js             In-memory strings, lists, hashes, and expiry
-src/persistence.js       Atomic snapshot save and reload
-src/server.js            TCP server and client connection handling
+bin/miniredis-cli.js     Terminal client
+src/resp.js              RESP2 parser and response encoder
+src/commands.js          Command validation and handlers
+src/store.js             Typed in-memory storage and expiry
+src/persistence.js       Atomic JSON snapshot persistence
+src/server.js            TCP connection lifecycle
 ```
-
-## Important Notes
-
-- Each key has one type only: string, list, or hash. Using a list command on a string key returns a `WRONGTYPE` error.
-- `FLUSHALL` removes all data, so use it carefully.
-- `KEYS *` scans all keys. It is fine for this learning project, but avoid this approach with large production databases.
-- Expired keys are removed when accessed and by a background cleanup task that runs every second.
-- Multiple TCP clients can connect and send commands at the same time.
-
-## Stop the Server
-
-In the server terminal, press:
-
-```text
-Ctrl + C
-```
-
-MiniRedis saves a final snapshot before closing.
