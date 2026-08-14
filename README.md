@@ -16,15 +16,132 @@ node --version
 npm --version
 ```
 
-## Installation
+## Download and Run from GitHub (Windows Step-by-Step)
 
-Clone or download this project, open a terminal in the project folder, and install packages:
+Repository: [raju-pandit/MiniRedisProject](https://github.com/raju-pandit/MiniRedisProject)
 
-```bash
+### Step 1: Install Node.js
+
+Download and install the **LTS** version of Node.js from [nodejs.org](https://nodejs.org/). During installation, keep the default options enabled.
+
+Open PowerShell and confirm that Node.js and npm are available:
+
+```powershell
+node --version
+npm --version
+```
+
+If both commands show version numbers, continue to Step 2. If PowerShell says `node is not recognized`, close and reopen the terminal after installing Node.js.
+
+### Step 2: Download the Project
+
+Choose one of these methods.
+
+#### Option A: Download ZIP (easiest)
+
+1. Open the [GitHub repository](https://github.com/raju-pandit/MiniRedisProject).
+2. Click the green **Code** button.
+3. Select **Download ZIP**.
+4. Extract the ZIP file anywhere, for example `D:\Projects\MiniRedisProject`.
+5. Open the extracted folder in File Explorer.
+6. Right-click inside the folder and choose **Open in Terminal** (or open PowerShell and use `cd`).
+
+Example when using PowerShell:
+
+```powershell
+cd D:\Projects\MiniRedisProject
+```
+
+#### Option B: Clone with Git
+
+If Git is installed, run:
+
+```powershell
+git clone https://github.com/raju-pandit/MiniRedisProject.git
+cd MiniRedisProject
+```
+
+### Step 3: Install the Project
+
+Inside the project folder, run:
+
+```powershell
 npm install
 ```
 
-There are no runtime dependencies, but this command prepares the project consistently for every user.
+This project has no runtime dependencies, but this command verifies the Node.js project setup.
+
+### Step 4: Start the Database Server
+
+Run:
+
+```powershell
+npm start
+```
+
+You should see:
+
+```text
+MiniRedis listening on 127.0.0.1:8000
+```
+
+Keep this terminal open. The server must remain running while you send commands.
+
+### Step 5: Open a Second Terminal and Send Commands
+
+Open another PowerShell window. Go to the same project folder:
+
+```powershell
+cd D:\Projects\MiniRedisProject
+```
+
+Now try these commands one by one:
+
+```powershell
+npm run cli -- PING
+npm run cli -- SET name Raju
+npm run cli -- GET name
+npm run cli -- RPUSH fruits apple mango banana
+npm run cli -- LRANGE fruits 0 -1
+npm run cli -- HSET user:1 name Raju city Delhi
+npm run cli -- HGETALL user:1
+```
+
+Expected basic result:
+
+```text
+PONG
+OK
+Raju
+```
+
+### Step 6: Stop the Server
+
+Go back to the server terminal and press:
+
+```text
+Ctrl + C
+```
+
+Data is automatically saved before the server closes. The next `npm start` reloads it from `data/snapshot.json`.
+
+## Quick Start
+
+If Node.js is already installed and the repository has already been downloaded:
+
+```powershell
+cd MiniRedisProject
+npm install
+npm start
+```
+
+Then, in a second terminal:
+
+```powershell
+cd MiniRedisProject
+npm run cli -- SET greeting hello
+npm run cli -- GET greeting
+```
 
 ## Start the Server
 
