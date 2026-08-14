@@ -180,7 +180,7 @@ function pushToList(args, store, persistence, fromLeft) {
     const values = args.slice(1);
 
     if (fromLeft) {
-      entry.value.unshift(...values);
+      entry.value.unshift(...values.reverse());
     } else {
       entry.value.push(...values);
     }
