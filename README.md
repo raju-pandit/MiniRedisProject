@@ -1,5 +1,5 @@
 # MiniRedis
-#THUNDER HACKATHON 5.0
+# THUNDER HACKATHON 5.0
 MiniRedis is a Redis-inspired in-memory key-value database written in Node.js. It is implemented with Node.js standard libraries only: a custom TCP server, a streaming RESP2 parser, an in-memory storage engine, expiry handling, a JSON snapshot system, and a command-line client.
 
 It is a learning project and local-development tool, not a production replacement for Redis.
