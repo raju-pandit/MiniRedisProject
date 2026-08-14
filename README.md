@@ -4,8 +4,6 @@ MiniRedis is a Redis-inspired in-memory key-value database written in Node.js. I
 
 It is a learning project and local-development tool, not a production replacement for Redis.
 
-> **Project integrity note:** This repository has used AI-assisted development. Do not submit it to a competition, assessment, or hackathon whose rules prohibit AI assistance.
-
 ## Contents
 
 - [Features](#features)
