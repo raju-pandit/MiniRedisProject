@@ -1,57 +1,183 @@
 'use strict';
 
-const VALID_TYPES = new Set(['string', 'list', 'hash']);
+const TYPES = new Set(['string', 'list', 'hash']);
 
 class Store {
-  constructor() { this.entries = new Map(); }
+  constructor() {
+    this.entries = new Map();
+  }
+
+  set(key, value) {
+    this.entries.set(key, {
+      type: 'string',
+      value: String(value),
+      expiresAt: null,
+    });
+  }
+
   getEntry(key) {
     const entry = this.entries.get(key);
-    if (!entry) return null;
-    if (entry.expiresAt !== null && entry.expiresAt <= Date.now()) { this.entries.delete(key); return null; }
+
+    if (!entry) {
+      return null;
+    }
+
+    if (entry.expiresAt !== null && entry.expiresAt <= Date.now()) {
+      this.entries.delete(key);
+      return null;
+    }
+
     return entry;
   }
-  set(key, value) { this.entries.set(key, { type: 'string', value: String(value), expiresAt: null }); }
-  delete(key) { return this.entries.delete(key) ? 1 : 0; }
-  exists(key) { return this.getEntry(key) ? 1 : 0; }
-  keys(pattern = '*') { const matcher = globToRegExp(pattern); return [...this.entries.keys()].filter((key) => this.getEntry(key) && matcher.test(key)); }
-  clear() { this.entries.clear(); }
-  expire(key, seconds) {
-    const entry = this.getEntry(key); if (!entry) return 0;
-    if (seconds <= 0) { this.entries.delete(key); return 1; }
-    entry.expiresAt = Date.now() + seconds * 1000; return 1;
+
+  getTyped(key, type, makeValue) {
+    let entry = this.getEntry(key);
+
+    if (!entry && makeValue) {
+      entry = { type, value: makeValue(), expiresAt: null };
+      this.entries.set(key, entry);
+    }
+
+    if (!entry) {
+      return null;
+    }
+
+    if (entry.type !== type) {
+      throw new Error('WRONGTYPE Operation against a key holding the wrong kind of value');
+    }
+
+    return entry;
   }
+
+  delete(key) {
+    return this.entries.delete(key) ? 1 : 0;
+  }
+
+  exists(key) {
+    return this.getEntry(key) ? 1 : 0;
+  }
+
+  clear() {
+    this.entries.clear();
+  }
+
+  keys(pattern) {
+    const matches = globPattern(pattern);
+    const keys = [];
+
+    for (const key of this.entries.keys()) {
+      if (this.getEntry(key) && matches.test(key)) {
+        keys.push(key);
+      }
+    }
+
+    return keys;
+  }
+
+  expire(key, seconds) {
+    const entry = this.getEntry(key);
+
+    if (!entry) {
+      return 0;
+    }
+
+    if (seconds <= 0) {
+      this.entries.delete(key);
+      return 1;
+    }
+
+    entry.expiresAt = Date.now() + seconds * 1000;
+    return 1;
+  }
+
   ttl(key) {
-    const entry = this.getEntry(key); if (!entry) return -2;
-    if (entry.expiresAt === null) return -1;
+    const entry = this.getEntry(key);
+
+    if (!entry) {
+      return -2;
+    }
+
+    if (entry.expiresAt === null) {
+      return -1;
+    }
+
     return Math.max(0, Math.ceil((entry.expiresAt - Date.now()) / 1000));
   }
-  persist(key) { const entry = this.getEntry(key); if (!entry || entry.expiresAt === null) return 0; entry.expiresAt = null; return 1; }
-  getTyped(key, type, createValue) {
-    let entry = this.getEntry(key);
-    if (!entry && createValue !== undefined) { entry = { type, value: createValue(), expiresAt: null }; this.entries.set(key, entry); }
-    if (!entry) return null;
-    if (entry.type !== type) throw new Error('WRONGTYPE Operation against a key holding the wrong kind of value');
-    return entry;
+
+  persist(key) {
+    const entry = this.getEntry(key);
+
+    if (!entry || entry.expiresAt === null) {
+      return 0;
+    }
+
+    entry.expiresAt = null;
+    return 1;
   }
-  purgeExpired() { for (const key of this.entries.keys()) this.getEntry(key); }
+
+  purgeExpired() {
+    for (const key of this.entries.keys()) {
+      this.getEntry(key);
+    }
+  }
+
   dump() {
     this.purgeExpired();
-    return { version: 1, entries: [...this.entries.entries()].map(([key, entry]) => ({ key, type: entry.type, value: entry.type === 'hash' ? [...entry.value.entries()] : entry.value, expiresAt: entry.expiresAt })) };
+
+    const entries = [...this.entries.entries()].map(([key, entry]) => ({
+      key,
+      type: entry.type,
+      value: entry.type === 'hash' ? [...entry.value.entries()] : entry.value,
+      expiresAt: entry.expiresAt,
+    }));
+
+    return { version: 1, entries };
   }
+
   load(snapshot) {
-    if (!snapshot || snapshot.version !== 1 || !Array.isArray(snapshot.entries)) throw new Error('invalid snapshot format');
-    const next = new Map();
-    for (const item of snapshot.entries) {
-      if (!item || typeof item.key !== 'string' || !VALID_TYPES.has(item.type)) throw new Error('invalid snapshot entry');
-      if (item.expiresAt !== null && (!Number.isFinite(item.expiresAt) || item.expiresAt <= Date.now())) continue;
-      const value = item.type === 'hash' ? new Map(item.value) : item.value;
-      if (item.type === 'list' && !Array.isArray(value)) throw new Error('invalid list snapshot entry');
-      if (item.type === 'string' && typeof value !== 'string') throw new Error('invalid string snapshot entry');
-      next.set(item.key, { type: item.type, value, expiresAt: item.expiresAt });
+    if (!snapshot || snapshot.version !== 1 || !Array.isArray(snapshot.entries)) {
+      throw new Error('invalid snapshot format');
     }
-    this.entries = next;
+
+    const entries = new Map();
+
+    for (const savedEntry of snapshot.entries) {
+      if (!savedEntry || typeof savedEntry.key !== 'string' || !TYPES.has(savedEntry.type)) {
+        throw new Error('invalid snapshot entry');
+      }
+
+      if (savedEntry.expiresAt !== null && (!Number.isFinite(savedEntry.expiresAt) || savedEntry.expiresAt <= Date.now())) {
+        continue;
+      }
+
+      const value = savedEntry.type === 'hash' ? new Map(savedEntry.value) : savedEntry.value;
+
+      if (savedEntry.type === 'string' && typeof value !== 'string') {
+        throw new Error('invalid string snapshot entry');
+      }
+
+      if (savedEntry.type === 'list' && !Array.isArray(value)) {
+        throw new Error('invalid list snapshot entry');
+      }
+
+      entries.set(savedEntry.key, {
+        type: savedEntry.type,
+        value,
+        expiresAt: savedEntry.expiresAt,
+      });
+    }
+
+    this.entries = entries;
   }
 }
 
-function globToRegExp(pattern) { return new RegExp(`^${String(pattern).replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.')}$`); }
+function globPattern(pattern) {
+  const escaped = String(pattern)
+    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+    .replace(/\*/g, '.*')
+    .replace(/\?/g, '.');
+
+  return new RegExp(`^${escaped}$`);
+}
+
 module.exports = { Store };

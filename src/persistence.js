@@ -1,18 +1,32 @@
 'use strict';
+
 const fs = require('node:fs');
 const path = require('node:path');
 
 class SnapshotPersistence {
-  constructor(snapshotPath) { this.snapshotPath = snapshotPath; }
-  load(store) {
-    if (!fs.existsSync(this.snapshotPath)) return false;
-    store.load(JSON.parse(fs.readFileSync(this.snapshotPath, 'utf8'))); return true;
+  constructor(snapshotPath) {
+    this.snapshotPath = snapshotPath;
   }
+
+  load(store) {
+    if (!fs.existsSync(this.snapshotPath)) {
+      return false;
+    }
+
+    const fileContents = fs.readFileSync(this.snapshotPath, 'utf8');
+    store.load(JSON.parse(fileContents));
+    return true;
+  }
+
   save(store) {
-    fs.mkdirSync(path.dirname(this.snapshotPath), { recursive: true });
+    const directory = path.dirname(this.snapshotPath);
     const temporaryPath = `${this.snapshotPath}.tmp`;
-    fs.writeFileSync(temporaryPath, JSON.stringify(store.dump()), 'utf8');
+    const snapshot = JSON.stringify(store.dump());
+
+    fs.mkdirSync(directory, { recursive: true });
+    fs.writeFileSync(temporaryPath, snapshot, 'utf8');
     fs.renameSync(temporaryPath, this.snapshotPath);
   }
 }
+
 module.exports = { SnapshotPersistence };
